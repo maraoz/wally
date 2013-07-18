@@ -6,6 +6,7 @@ var CLIENT_VERSION = "0.1";
 var fs = require('fs');
 var util = require('util');
 var EncFile = require('../EncFile');
+var HeaderDB = require('../HeaderDB').class();
 var KeyModule = require('libcoin/Key');
 var coinUtil = require('libcoin/util/util');
 var networks = require('libcoin/networks');
@@ -18,6 +19,8 @@ var argv = require('optimist')
 	.describe('f', 'Load/store wallet to/from encrypted JSON file')
 	.alias('p', 'peers')
 	.describe('p', 'JSON file containing network peers')
+	.alias('H', 'headers')
+	.describe('H', 'Binary blockchain header database file')
 	.alias('P', 'pass')
 	.describe('P', 'Passphrase')
 	.demand(['P'])
@@ -25,6 +28,7 @@ var argv = require('optimist')
 ;
 var walletdb_fn = argv.file ? argv.file : 'walletdb.aes';
 var peerdb_fn = argv.peers ? argv.peers : 'peerdb.json';
+var hdrdb_fn = argv.headers ? argv.headers : 'hdrdb.dat';
 
 // blank wallet
 var datastore = {
@@ -32,8 +36,11 @@ var datastore = {
 	client_version: CLIENT_VERSION,
 	network: 'livenet',
 	version: 1,
+	best_hash: null,
+	best_height: -1,
 	keys: [],
 };
+var hdrdb = undefined;
 var peerdb = undefined;
 var network = undefined;
 
@@ -123,6 +130,17 @@ function peerdb_load()
 	}
 }
 
+function hdrdb_load()
+{
+	hdrdb = new HeaderDB({network: network});
+
+	try {
+		hdrdb.readFile(hdrdb_fn);
+	} catch(e) {
+		// do nothing
+	}
+}
+
 function cmd_init()
 {
 	if (argv._.length > 1)
@@ -203,6 +221,7 @@ function main()
 	}
 
 	peerdb_load();
+	hdrdb_load();
 
 	switch (cmd) {
 
