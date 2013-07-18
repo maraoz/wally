@@ -2,6 +2,7 @@
 // MIT/X11-like license.  See LICENSE.txt.
 // Copyright 2013 BitPay, Inc.
 
+var CLIENT_VERSION = "0.1";
 var fs = require('fs');
 var util = require('util');
 var EncFile = require('../EncFile');
@@ -27,6 +28,8 @@ var peerdb_fn = argv.peers ? argv.peers : 'peerdb.json';
 
 // blank wallet
 var datastore = {
+	client: 'wally',
+	client_version: CLIENT_VERSION,
 	network: 'livenet',
 	version: 1,
 	keys: [],
