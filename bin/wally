@@ -7,6 +7,7 @@ var fs = require('fs');
 var util = require('util');
 var program = require('commander');
 var Block = require('libcoin/Block').class();
+var CoinConst = require('libcoin/const');
 var EncFile = require('libcoin/util/EncFile');
 var HeaderDB = require('../HeaderDB').class();
 var KeyModule = require('libcoin/Key');
@@ -169,16 +170,15 @@ function cmd_key_new()
 	console.log(addr.toString());
 }
 
-function netsync_getblocks(info)
+function netsync_getheaders(info)
 {
 	var conn = info.conn;
-	conn.sendGetBlocks(hdrdb.locator(), coinUtil.NULL_HASH);
+	var loc = hdrdb.locator();
+	conn.sendGetHeaders(loc, coinUtil.NULL_HASH);
 }
 
-function netsync_block(info)
+function netsync_add_header(info, block)
 {
-	var block = info.message.block;
-
 	var hashStr = coinUtil.formatHashFull(block.calcHash());
 
 	try {
@@ -193,16 +193,34 @@ function netsync_block(info)
 	var height = hdrdb.size() - 1;
 	console.log("HeaderDB added block #" + height + ", " + hashStr);
 
+	netsync_getheaders(info);
+}
+
+function netsync_headers(info)
+{
+	var conn = info.conn;
+	var headers = info.message.headers;
+
+	headers.forEach(function(hdr) {
+		netsync_add_header(info, hdr);
+	});
+}
+
+function netsync_block(info)
+{
+	var block = info.message.block;
+	netsync_add_header(info, block);
+
 	if (syncState == 'init') {
-		syncState = 'IBD';
-		netsync_getblocks(info);
+		syncState = 'headers';
+		netsync_getheaders(info);
 	}
 }
 
 function netsync_verack(info)
 {
 	var inv = {
-		type: 2,	// MSG_BLOCK
+		type: CoinConst.MSG.BLOCK,
 		hash: network.genesisBlock.hash,
 	};
 	var invs = [ inv ];
@@ -237,6 +255,7 @@ function cmd_netsync()
 	peerman.on('connection', function(conn) {
 		conn.on('verack', netsync_verack);
 		conn.on('block', netsync_block);
+		conn.on('headers', netsync_headers);
 	});
 	peerman.on('connect', function(data) {
 		netsync_connected(data);
