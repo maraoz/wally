@@ -12,6 +12,10 @@ function ClassSpec(b) {
 		this.bestBlock = null;
 	};
 
+	HeaderDB.prototype.size = function() {
+		return Object.keys(this.blocks).length;
+	};
+
 	HeaderDB.prototype.locator = function(block) {
 		if (!block)
 			block = this.bestBlock;
@@ -47,7 +51,7 @@ function ClassSpec(b) {
 			disconn: 0,
 		};
 
-		if (Object.keys(this.blocks).length == 0) {
+		if (this.size() == 0) {
 			if (this.network.genesisBlock.hash.toString() !=
 			    hashStr)
 				throw new Error("Invalid genesis block");

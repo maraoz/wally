@@ -6,6 +6,7 @@ var CLIENT_VERSION = "0.1";
 var fs = require('fs');
 var util = require('util');
 var program = require('commander');
+var Block = require('libcoin/Block').class();
 var EncFile = require('libcoin/util/EncFile');
 var HeaderDB = require('../HeaderDB').class();
 var KeyModule = require('libcoin/Key');
@@ -39,6 +40,7 @@ var datastore = {
 var hdrdb = undefined;
 var peerdb = undefined;
 var network = undefined;
+var syncState = 'init';		// empty headerdb, no genesis block
 
 function list_commands()
 {
@@ -167,15 +169,31 @@ function cmd_key_new()
 	console.log(addr.toString());
 }
 
+function netsync_block(info)
+{
+	var block = new Block(info.message);
+	hdrdb.add(block);
+
+	console.log("HeaderDB added block #" + (hdrdb.size() - 1) + ", " +
+		    coinUtil.formatHashFull(block.calcHash()));
+}
+
+function netsync_verack(info)
+{
+	var inv = {
+		type: 2,	// MSG_BLOCK
+		hash: network.genesisBlock.hash,
+	};
+	var invs = [ inv ];
+
+	info.conn.sendGetData(invs);
+}
+
 function netsync_connected(data)
 {
 	var peerman = data.pm;
 
-	console.log("We connected.  Hurrah.");
-
-	peerman.stop();
-	
-	console.log("netsync ends");
+	console.log("netsync: Connected to (at least one) peer");
 }
 
 function cmd_netsync()
@@ -195,6 +213,10 @@ function cmd_netsync()
 		peerman.addPeer(peer);
 	});
 
+	peerman.on('connection', function(conn) {
+		conn.on('verack', netsync_verack);
+		conn.on('block', netsync_block);
+	});
 	peerman.on('connect', function(data) {
 		netsync_connected(data);
 	});
