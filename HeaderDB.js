@@ -1,6 +1,7 @@
 require('classtool');
 
 function ClassSpec(b) {
+	var assert = require('assert');
 	var fs = require('fs');
 	var Block = require('libcoin/Block');
 	var Deserialize = require('libcoin/Deserialize');
@@ -10,6 +11,7 @@ function ClassSpec(b) {
 		this.network = b.network;
 		this.fd = null;
 		this.blocks = {};
+		this.byHeight = [];
 		this.bestBlock = null;
 	};
 
@@ -22,17 +24,16 @@ function ClassSpec(b) {
 			block = this.bestBlock;
 
 		var step = 1;
+		var start = 0;
 		var loc = [];
-		while (block) {
-			loc.push(block.calcHash());
-
-			for (var i = 0; block && i < step; i++)
-				block = block.prev;
-			if (loc.length > 10)
+		for (var i = block.height; i > 0; i -= step, ++start) {
+			if (start >= 10)
 				step *= 2;
+			loc.push(this.byHeight[i].calcHash());
 		}
-
-		loc.push(this.network.genesisBlock.hash);
+		assert.equal(this.byHeight[0].calcHash().toString(),
+			    this.network.genesisBlock.hash.toString());
+		loc.push(this.byHeight[0].calcHash());
 
 		return loc;
 	};
@@ -115,8 +116,21 @@ function ClassSpec(b) {
 				reorg.disconn++;
 			}
 
+			var shuf = (reorg.conn > reorg.disconn) ?
+				   reorg.conn : reorg.disconn;
+
 			// reorg analyzed, updated best-chain pointer
 			this.bestBlock = block;
+
+			// update by-height index
+			var ptr = block;
+			for (var idx = block.height; 
+			     idx > (block.height - shuf); idx--) {
+				if (idx < 0)
+					break;
+				this.byHeight[idx] = ptr;
+				ptr = ptr.prev;
+			}
 		}
 
 		return reorg;
