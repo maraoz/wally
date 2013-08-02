@@ -169,22 +169,33 @@ function cmd_key_new()
 	console.log(addr.toString());
 }
 
+function netsync_getblocks(info)
+{
+	var conn = info.conn;
+	conn.sendGetBlocks(hdrdb.locator(), coinUtil.NULL_HASH);
+}
+
 function netsync_block(info)
 {
 	var block = new Block(info.message);
 
-	var errmsg = undefined;
-	var height = undefined;
 	var hashStr = coinUtil.formatHashFull(block.calcHash());
 
 	try {
 		hdrdb.add(block);
-		height = hdrdb.size() - 1;
-		console.log("HeaderDB added block #" + height + ", " + hashStr);
 	} catch(e) {
-		height = hdrdb.size();
+		var height = hdrdb.size();
 		console.log("HeaderDB failed adding block #" + height + ", " + hashStr);
 		console.log("   Reason: " + e);
+		return;
+	}
+
+	var height = hdrdb.size() - 1;
+	console.log("HeaderDB added block #" + height + ", " + hashStr);
+
+	if (syncState == 'init') {
+		syncState = 'IBD';
+		netsync_getblocks(info);
 	}
 }
 

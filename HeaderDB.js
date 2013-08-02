@@ -32,6 +32,8 @@ function ClassSpec(b) {
 		}
 
 		loc.push(this.network.genesisBlock.hash);
+
+		return loc;
 	};
 
 	HeaderDB.prototype.add = function(block) {
