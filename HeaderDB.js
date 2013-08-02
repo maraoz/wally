@@ -27,7 +27,7 @@ function ClassSpec(b) {
 				step *= 2;
 		}
 
-		loc.push(this.network.genesisBlock.hash.toString());
+		loc.push(this.network.genesisBlock.hash);
 	};
 
 	HeaderDB.prototype.add = function(block) {
@@ -47,7 +47,7 @@ function ClassSpec(b) {
 			disconn: 0,
 		};
 
-		if (this.blocks.length == 0) {
+		if (Object.keys(this.blocks).length == 0) {
 			if (this.network.genesisBlock.hash.toString() !=
 			    hashStr)
 				throw new Error("Invalid genesis block");
