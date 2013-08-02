@@ -172,10 +172,20 @@ function cmd_key_new()
 function netsync_block(info)
 {
 	var block = new Block(info.message);
-	hdrdb.add(block);
 
-	console.log("HeaderDB added block #" + (hdrdb.size() - 1) + ", " +
-		    coinUtil.formatHashFull(block.calcHash()));
+	var errmsg = undefined;
+	var height = undefined;
+	var hashStr = coinUtil.formatHashFull(block.calcHash());
+
+	try {
+		hdrdb.add(block);
+		height = hdrdb.size() - 1;
+		console.log("HeaderDB added block #" + height + ", " + hashStr);
+	} catch(e) {
+		height = hdrdb.size();
+		console.log("HeaderDB failed adding block #" + height + ", " + hashStr);
+		console.log("   Reason: " + e);
+	}
 }
 
 function netsync_verack(info)
