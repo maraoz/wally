@@ -177,7 +177,7 @@ function netsync_getblocks(info)
 
 function netsync_block(info)
 {
-	var block = new Block(info.message);
+	var block = info.message.block;
 
 	var hashStr = coinUtil.formatHashFull(block.calcHash());
 
