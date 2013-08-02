@@ -4,6 +4,7 @@ function ClassSpec(b) {
 	var fs = require('fs');
 	var Block = require('libcoin/Block');
 	var Deserialize = require('libcoin/Deserialize');
+	var Parser = require('libcoin/util/BinaryParser');
 
 	function HeaderDB(b) {
 		this.network = b.network;
@@ -123,7 +124,8 @@ function ClassSpec(b) {
 
 	HeaderDB.prototype.addBuf = function(buf) {
 		var block = new Block();
-		block.parseHeader(buf);
+		var parser = new Parser(buf);
+		block.parse(parser, true);
 		this.add(block);
 	};
 
