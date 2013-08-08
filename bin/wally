@@ -13,6 +13,7 @@ var KeyModule = require('libcoin/Key');
 var coinUtil = require('libcoin/util/util');
 var Address = require('libcoin/Address').class();
 var Wallet = require('libcoin/Wallet').class();
+var WalletKey = require('libcoin/WalletKey').class();
 
 program
 	.version(CLIENT_VERSION)
@@ -125,22 +126,16 @@ function cmd_init()
 
 function cmd_key_new()
 {
-	var newKey = KeyModule.Key.generateSync();
-	var pubKey = newKey.public.toString('hex');
-	var pubKeyHash = coinUtil.sha256ripe160(newKey.public);
-	var addr = new Address(network.addressPubkey, pubKeyHash);
-	var walletKey = {
-		created: curtime(),
-		priv: newKey.private.toString('hex'),
-		pub: pubKey,
-		addr: addr.toString(),
-	};
+	var newKey = new WalletKey({network: network});
+	newKey.generate();
 
-	wallet.addKey(walletKey);
+	var obj = newKey.storeObj();
+
+	wallet.addKey(obj);
 
 	write_datastore(function(err) {});
 
-	console.log(addr.toString());
+	console.log(obj.addr.toString());
 }
 
 function netsync_getheaders(info)
