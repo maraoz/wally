@@ -8,13 +8,11 @@ var util = require('util');
 var program = require('commander');
 var Block = require('libcoin/Block').class();
 var CoinConst = require('libcoin/const');
-var EncFile = require('libcoin/util/EncFile');
 var HeaderDB = require('../HeaderDB').class();
 var KeyModule = require('libcoin/Key');
 var coinUtil = require('libcoin/util/util');
-var networks = require('libcoin/networks');
 var Address = require('libcoin/Address').class();
-var ENC_METHOD = 'aes-256-cbc';
+var Wallet = require('libcoin/Wallet').class();
 
 program
 	.version(CLIENT_VERSION)
@@ -28,16 +26,12 @@ var walletdb_fn = program.file;
 var peerdb_fn = program.peers;
 var hdrdb_fn = program.headers;
 
-// blank wallet
-var datastore = {
-	client: 'wally',
-	client_version: CLIENT_VERSION,
-	network: 'livenet',
-	version: 1,
-	best_hash: null,
-	best_height: -1,
-	keys: [],
-};
+// Our empty wallet defaults
+var wallet = new Wallet();
+wallet.datastore.client = 'wally';
+wallet.datastore.client_version = CLIENT_VERSION;
+wallet.datastore.network = 'livenet';
+
 var hdrdb = undefined;
 var peerdb = undefined;
 var network = undefined;
@@ -60,25 +54,6 @@ function curtime()
 	return Math.round(Date.now() / 1000);
 }
 
-function network_load(netname)
-{
-	switch (netname) {
-	case "mainnet":
-	case "livenet":
-		network = networks.livenet;
-		break;
-	case "testnet":
-		network = networks.testnet;
-		break;
-	default:
-		console.error("Unsupported network", netname);
-		break;
-	}
-
-	// store+canonicalize name
-	datastore['network'] = network.name;
-}
-
 function remove_datastore(callback)
 {
 	fs.exists(walletdb_fn, function(exists) {
@@ -90,29 +65,27 @@ function remove_datastore(callback)
 	});
 }
 
-function read_datastore(callback)
-{
-	datastore = EncFile.readJFileSync(ENC_METHOD, program.pass, walletdb_fn);
-	callback();
-}
-
 function write_datastore(callback)
 {
-	var tmp_fn = walletdb_fn + ".tmp";
-
 	try {
-		EncFile.writeJFileSync(ENC_METHOD, program.pass, tmp_fn,datastore);
-		fs.rename(tmp_fn, walletdb_fn, callback);
+		wallet.writeSync(walletdb_fn, program.pass);
+		callback();
 	} catch(e) {
-		console.error("Failed to write wallet.");
+		console.error("Failed to write wallet:" + e);
 		callback(e);
 	}
 }
 
+function network_load(netname)
+{
+	wallet.setNetwork(netname);
+	network = wallet.network;
+}
+
 function wallet_load()
 {
-	read_datastore(function(err) {});
-	network_load(datastore['network']);
+	wallet.readSync(walletdb_fn, program.pass);
+	network_load(wallet.datastore.network);
 }
 
 function peerdb_load()
@@ -163,7 +136,7 @@ function cmd_key_new()
 		addr: addr.toString(),
 	};
 
-	datastore.keys.push(walletKey);
+	wallet.addKey(walletKey);
 
 	write_datastore(function(err) {});
 
@@ -288,7 +261,7 @@ function main()
 		break;
 
 	case "dump":
-		console.dir(datastore);
+		console.dir(wallet.datastore);
 		break;
 
 	default:
