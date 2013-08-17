@@ -14,6 +14,7 @@ var coinUtil = require('libcoin/util/util');
 var Address = require('libcoin/Address').class();
 var Wallet = require('libcoin/Wallet').class();
 var WalletKey = require('libcoin/WalletKey').class();
+var SINKey = require('libcoin/SINKey').class();
 
 program
 	.version(CLIENT_VERSION)
@@ -45,7 +46,8 @@ function list_commands()
 	s += "dump\t\tInspect internal transaction state\n";
 	s += "help\t\tList this command summary\n";
 	s += "init [network]\tInitialize new transaction state database\n";
-	s += "key.new\t\tGenerate new ECDSA private key (bitcoin address\n";
+	s += "key.new\t\tGenerate new ECDSA private key (bitcoin address)\n";
+	s += "sin.new\t\tGenerate new ECDSA private key (SIN identity)\n";
 	console.log(s);
 }
 
@@ -136,6 +138,20 @@ function cmd_key_new()
 	write_datastore(function(err) {});
 
 	console.log(obj.addr.toString());
+}
+
+function cmd_sin_new()
+{
+	var newKey = new SINKey();
+	newKey.generate();
+
+	var obj = newKey.storeObj();
+
+	wallet.addSIN(obj);
+
+	write_datastore(function(err) {});
+
+	console.log(obj.sin);
 }
 
 function netsync_getheaders(info)
@@ -277,6 +293,10 @@ function main()
 
 	case "netsync":
 		cmd_netsync();
+		break;
+
+	case "sin.new":
+		cmd_sin_new();
 		break;
 	}
 }
