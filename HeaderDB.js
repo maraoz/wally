@@ -174,7 +174,7 @@ function ClassSpec(b) {
 
 		var fd = fs.openSync(filename, 'w');
 
-		data.foreach(function(datum) {
+		data.forEach(function(datum) {
 			fs.writeSync(fd, datum, 0, 80, null);
 		});
 

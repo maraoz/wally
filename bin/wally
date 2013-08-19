@@ -15,6 +15,7 @@ var Address = require('libcoin/Address').class();
 var Wallet = require('libcoin/Wallet').class();
 var WalletKey = require('libcoin/WalletKey').class();
 var SINKey = require('libcoin/SINKey').class();
+var Parser = require('libcoin/util/BinaryParser').class();
 
 program
 	.version(CLIENT_VERSION)
@@ -248,6 +249,101 @@ function cmd_netsync()
 	peerman.start();
 }
 
+function filesync_block_buf(blkdir, fn, buf)
+{
+	var parser = new Parser(buf);
+	var block = new Block();
+	block.parse(parser, true);
+
+	var hashStr = coinUtil.formatHashFull(block.calcHash());
+
+	try {
+		hdrdb.add(block);
+	} catch(e) {
+		var height = hdrdb.size();
+		console.log("HeaderDB failed adding block #" + height + ", " + hashStr);
+		console.log("   Reason: " + e);
+		return;
+	}
+
+	var height = hdrdb.size() - 1;
+	if ((height % 1000) == 0)
+		console.log("HeaderDB added block #" + height + ", " + hashStr);
+}
+
+function filesync_open_cb(err, fd, blkdir, fn)
+{
+	if (err) throw err;
+
+	var hdrbuf = new Buffer(4 * 2);
+	while (1) {
+		// read 2x 32-bit header
+		var bread = fs.readSync(fd, hdrbuf, 0, 4 * 2, null);
+		if (bread < (4 * 2))
+			break;
+
+		// check magic matches
+		var magic = hdrbuf.slice(0, 4);
+		if (magic.toString() != network.magic.toString())
+			throw new Error("Invalid network magic");
+
+		// block size
+		var blkSize = hdrbuf.readUInt32LE(4);
+		if (blkSize > (1 * 1024 * 1024))
+			throw new Error("Invalid block size " + blkSize);
+
+		// read raw block data
+		var blkBuf = new Buffer(blkSize);
+		bread = fs.readSync(fd, blkBuf, 0, blkSize, null);
+		if (bread != blkSize)
+			throw new Error("Failed to read block");
+
+		// process block
+		filesync_block_buf(blkdir, fn, blkBuf);
+	}
+
+	fs.closeSync(fd);
+
+	hdrdb.writeFile(hdrdb_fn);
+}
+
+function filesync_block_file(blkdir, fn)
+{
+	console.log("Scanning " + fn + " for block data.");
+
+	var pathname = blkdir + '/' + fn;
+	fs.open(pathname, 'r', function (err, fd) {
+		filesync_open_cb(err, fd, blkdir, fn);
+	});
+}
+
+function cmd_filesync_rd(err, files, blkdir)
+{
+	if (err) throw err;
+
+	files = files.sort();
+
+	files.forEach(function(fn) {
+		var re = /^blk\d+\.dat$/;
+		if (fn.match(re))
+			filesync_block_file(blkdir, fn);
+	});
+}
+
+function cmd_filesync()
+{
+	if (program.args.length < 2) {
+		console.error("filesync: no directory specified");
+		return;
+	}
+
+	var blkdir = program.args[1];
+
+	fs.readdir(blkdir, function (err, files) {
+		cmd_filesync_rd(err, files, blkdir);
+	});
+}
+
 function main()
 {
 	if (program.args.length == 0) {
@@ -266,6 +362,10 @@ function main()
 	hdrdb_load();
 
 	switch (cmd) {
+
+	case "filesync":
+		cmd_filesync();
+		break;
 
 	case "clean":
 		remove_datastore(function(err) {});
