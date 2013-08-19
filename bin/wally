@@ -279,13 +279,17 @@ function filesync_open_cb(err, fd, blkdir, fn)
 	while (1) {
 		// read 2x 32-bit header
 		var bread = fs.readSync(fd, hdrbuf, 0, 4 * 2, null);
-		if (bread < (4 * 2))
+		if (bread < (4 * 2)) {
+			console.log("Short read/EOF, ending scan of " + fn);
 			break;
+		}
 
 		// check magic matches
 		var magic = hdrbuf.slice(0, 4);
-		if (magic.toString() != network.magic.toString())
-			throw new Error("Invalid network magic");
+		if (magic.toString() != network.magic.toString()) {
+			console.log("Invalid network magic, ending scan of " + fn);
+			break;
+		}
 
 		// block size
 		var blkSize = hdrbuf.readUInt32LE(4);
@@ -305,6 +309,7 @@ function filesync_open_cb(err, fd, blkdir, fn)
 	fs.closeSync(fd);
 
 	hdrdb.writeFile(hdrdb_fn);
+	console.log("Wrote header db");
 }
 
 function filesync_block_file(blkdir, fn)
@@ -323,11 +328,16 @@ function cmd_filesync_rd(err, files, blkdir)
 
 	files = files.sort();
 
+	var scanned = 0;
 	files.forEach(function(fn) {
 		var re = /^blk\d+\.dat$/;
-		if (fn.match(re))
+		if (fn.match(re)) {
 			filesync_block_file(blkdir, fn);
+			scanned++;
+		}
 	});
+
+	console.log("Scanned " + scanned + " of " + files.length + " files in " + blkdir);
 }
 
 function cmd_filesync()
