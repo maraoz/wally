@@ -29,22 +29,21 @@ function ClassSpec(b) {
 		for (var i = block.height; i > 0; i -= step, ++start) {
 			if (start >= 10)
 				step *= 2;
-			loc.push(this.byHeight[i].calcHash());
+			loc.push(this.byHeight[i]);
 		}
-		assert.equal(this.byHeight[0].calcHash().toString(),
+		assert.equal(this.byHeight[0].toString(),
 			    this.network.genesisBlock.hash.toString());
-		loc.push(this.byHeight[0].calcHash());
+		loc.push(this.byHeight[0]);
 
 		return loc;
 	};
 
 	HeaderDB.prototype.add = function(block) {
 		var hash = block.calcHash();
-		var hashStr = hash.toString();
-		var prevHashStr = block.prev_hash.toString();
+		block.hash = hash;
 		var curWork = Deserialize.intFromCompact(block.bits);
 
-		if (hashStr in this.blocks)
+		if (hash in this.blocks)
 			throw new Error("duplicate block");
 
 		var bestChain = false;
@@ -57,19 +56,17 @@ function ClassSpec(b) {
 
 		if (this.size() == 0) {
 			if (this.network.genesisBlock.hash.toString() !=
-			    hashStr)
+			    hash.toString())
 				throw new Error("Invalid genesis block");
 
-			block.prev = null;
 			block.height = 0;
 			block.work = curWork;
 			bestChain = true;
 		} else {
-			var prevBlock = this.blocks[prevHashStr];
+			var prevBlock = this.blocks[block.prev_hash];
 			if (!prevBlock)
 				throw new Error("orphan block; prev not found");
 
-			block.prev = prevBlock;
 			block.height = prevBlock.height + 1;
 			block.work = prevBlock.work + curWork;
 
@@ -78,7 +75,7 @@ function ClassSpec(b) {
 		}
 
 		// add to by-hash index
-		this.blocks[hashStr] = block;
+		this.blocks[hash] = block;
 
 		if (bestChain) {
 			var oldBest = this.bestBlock;
@@ -89,13 +86,13 @@ function ClassSpec(b) {
 			// likely case: new best chain has greater height
 			if (!oldBest) {
 				while (newBest) {
-					newBest = newBest.prev;
+					newBest = this.blocks[newBest.prev_hash];
 					reorg.conn++;
 				}
 			} else {
 				while (newBest &&
 				       (newBest.height > oldBest.height)) {
-					newBest = newBest.prev;
+					newBest = this.blocks[newBest.prev_hash];
 					reorg.conn++;
 				}
 			}
@@ -103,16 +100,16 @@ function ClassSpec(b) {
 			// unlikely: old best chain has greater height
 			while (oldBest && newBest &&
 			       (oldBest.height > newBest.height)) {
-				oldBest = oldBest.prev;
+				oldBest = this.blocks[oldBest.prev_hash];
 				reorg.disconn++;
 			}
 
 			// height matches, but still walking parallel
 			while (oldBest && newBest && (oldBest != newBest)) {
-				newBest = newBest.prev;
+				newBest = this.blocks[newBest.prev_hash];
 				reorg.conn++;
 
-				oldBest = oldBest.prev;
+				oldBest = this.blocks[oldBest.prev_hash];
 				reorg.disconn++;
 			}
 
@@ -124,12 +121,27 @@ function ClassSpec(b) {
 
 			// update by-height index
 			var ptr = block;
+			var updated = [];
 			for (var idx = block.height; 
 			     idx > (block.height - shuf); idx--) {
 				if (idx < 0)
 					break;
-				this.byHeight[idx] = ptr;
-				ptr = ptr.prev;
+				var update = [ idx, ptr ];
+				updated.push(update);
+				ptr = this.blocks[ptr.prev_hash];
+			}
+
+			updated.reverse();
+
+			for (var i = 0; i < updated.length; i++) {
+				var update = updated[i];
+				var idx = update[0];
+				var ptr = update[1];
+
+				if (idx < this.byHeight.length)
+					this.byHeight[idx] = ptr.hash;
+				else
+					this.byHeight.push(ptr.hash);
 			}
 		}
 
@@ -167,7 +179,7 @@ function ClassSpec(b) {
 		while (block) {
 			var s = block.getHeader();
 			data.push(s);
-			block = block.prev;
+			block = this.blocks[block.prev_hash];
 		}
 
 		data.reverse();
