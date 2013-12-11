@@ -27,7 +27,8 @@
   "dependencies": {
     "classtool": ">=1.0.0",
     "optimist": ">=0.6.0",
-    "libcoin": ">=0.1.3"
+    "libcoin": ">=0.1.3",
+    "commander": ">=2.1.0"
   },
   "devDependencies": {},
   "license": "MIT"
