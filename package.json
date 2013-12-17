@@ -20,6 +20,10 @@
     "bitcoin",
     "wallet"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bitpay/wally.git"
+  },
   "scripts": {},
   "engines": {
     "node": ">=0.8"
