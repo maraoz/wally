@@ -3,9 +3,9 @@ require('classtool');
 function ClassSpec(b) {
 	var assert = require('assert');
 	var fs = require('fs');
-	var Block = require('libcoin/Block');
-	var Deserialize = require('libcoin/Deserialize');
-	var Parser = require('libcoin/util/BinaryParser');
+	var Block = require('bitcore/Block');
+	var Deserialize = require('bitcore/Deserialize');
+	var Parser = require('bitcore/util/BinaryParser');
 
 	function HeaderDB(b) {
 		this.network = b.network;

@@ -6,16 +6,16 @@ var CLIENT_VERSION = "0.1";
 var fs = require('fs');
 var util = require('util');
 var program = require('commander');
-var Block = require('libcoin/Block').class();
-var CoinConst = require('libcoin/const');
+var Block = require('bitcore/Block').class();
+var CoinConst = require('bitcore/const');
 var HeaderDB = require('../HeaderDB').class();
-var KeyModule = require('libcoin/Key');
-var coinUtil = require('libcoin/util/util');
-var Address = require('libcoin/Address').class();
-var Wallet = require('libcoin/Wallet').class();
-var WalletKey = require('libcoin/WalletKey').class();
-var SINKey = require('libcoin/SINKey').class();
-var Parser = require('libcoin/util/BinaryParser').class();
+var KeyModule = require('bitcore/Key');
+var coinUtil = require('bitcore/util/util');
+var Address = require('bitcore/Address').class();
+var Wallet = require('bitcore/Wallet').class();
+var WalletKey = require('bitcore/WalletKey').class();
+var SINKey = require('bitcore/SINKey').class();
+var Parser = require('bitcore/util/BinaryParser').class();
 
 program
 	.version(CLIENT_VERSION)
@@ -225,8 +225,8 @@ function cmd_netsync()
 	var config = {
 		network: network.name
 	};
-	var PeerManager = require('libcoin/PeerManager').createClass({config: config});
-	var Peer = require('libcoin/Peer').class();
+	var PeerManager = require('bitcore/PeerManager').createClass({config: config});
+	var Peer = require('bitcore/Peer').class();
 
 	console.log("netsync begins");
 
