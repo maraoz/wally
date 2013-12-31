@@ -362,7 +362,15 @@ function main()
 		return;
 	}
 
+
+	if (! program.pass) {
+		console.error("No passphrase given (use -P <passphrase>)");
+		list_commands();
+		return;
+	}
+
 	var cmd = program.args[0];
+
 	
 	if (cmd != 'init' && cmd != 'help' && cmd != 'clean') {
 		wallet_load();
