@@ -110,11 +110,10 @@ function hdrdb_load()
 {
 	hdrdb = new HeaderDB({network: network});
 
-	try {
-		hdrdb.readFile(hdrdb_fn);
-	} catch(e) {
-		// do nothing
-	}
+    if (fs.existsSync(hdrdb_fn)) {
+        hdrdb.readFile(hdrdb_fn);
+        console.log("### Headers DB read. Height is: " + hdrdb.size() );
+    }
 }
 
 function cmd_init()
@@ -166,19 +165,20 @@ function netsync_add_header(info, block)
 {
 	var hashStr = coinUtil.formatHashFull(block.calcHash());
 
+console.log("### ADDING..." + hashStr + " @ " +  hdrdb.cached_size );
 	try {
 		hdrdb.add(block);
 	} catch(e) {
-		var height = hdrdb.size();
+		var height = hdrdb.cached_size;
 		console.log("HeaderDB failed adding block #" + height + ", " + hashStr);
 		console.log("   Reason: " + e);
 		return;
 	}
 
-	var height = hdrdb.size() - 1;
+	var height = hdrdb.size - 1;
 	console.log("HeaderDB added block #" + height + ", " + hashStr);
 
-	netsync_getheaders(info);
+//	netsync_getheaders(info);
 }
 
 function netsync_headers(info)
@@ -186,9 +186,18 @@ function netsync_headers(info)
 	var conn = info.conn;
 	var headers = info.message.headers;
 
+
+console.log("POR ADD... " + headers.length );
 	headers.forEach(function(hdr) {
 		netsync_add_header(info, hdr);
 	});
+
+
+//  We persist the header DB after each bach
+    hdrdb.writeFile(hdrdb_fn);
+
+//  Only one request per batch of headers we receive. 
+    netsync_getheaders(info);
 }
 
 function netsync_block(info)
@@ -196,8 +205,10 @@ function netsync_block(info)
 	var block = info.message.block;
 	netsync_add_header(info, block);
 
+
 	if (syncState == 'init') {
 		syncState = 'headers';
+console.log("###  Got first header....!");
 		netsync_getheaders(info);
 	}
 }
@@ -210,6 +221,7 @@ function netsync_verack(info)
 	};
 	var invs = [ inv ];
 
+//  Asks for the genesis block
 	info.conn.sendGetData(invs);
 }
 
@@ -378,6 +390,8 @@ function main()
 
 	peerdb_load();
 	hdrdb_load();
+
+
 
 	switch (cmd) {
 

@@ -3,9 +3,10 @@ require('classtool');
 function ClassSpec(b) {
 	var assert = require('assert');
 	var fs = require('fs');
-	var Block = require('bitcore/Block');
+	var Block = require('bitcore/Block').class();
 	var Deserialize = require('bitcore/Deserialize');
-	var Parser = require('bitcore/util/BinaryParser');
+	var Parser = require('bitcore/util/BinaryParser').class();
+    var coinUtil = require('bitcore/util/util');
 
 	function HeaderDB(b) {
 		this.network = b.network;
@@ -13,10 +14,12 @@ function ClassSpec(b) {
 		this.blocks = {};
 		this.byHeight = [];
 		this.bestBlock = null;
+        this.cached_size = 0;
 	};
 
 	HeaderDB.prototype.size = function() {
-		return Object.keys(this.blocks).length;
+		this.cached_size = Object.keys(this.blocks).length;
+        return this.cached_size;
 	};
 
 	HeaderDB.prototype.locator = function(block) {
@@ -35,6 +38,7 @@ function ClassSpec(b) {
 			    this.network.genesisBlock.hash.toString());
 		loc.push(this.byHeight[0]);
 
+console.log("LOCATOR CALL: step:" + step + " i: " + i + " Current height:" + block.height );
 		return loc;
 	};
 
@@ -43,8 +47,10 @@ function ClassSpec(b) {
 		block.hash = hash;
 		var curWork = Deserialize.intFromCompact(block.bits);
 
-		if (hash in this.blocks)
-			throw new Error("duplicate block");
+		if (hash in this.blocks) {
+            var old  =  this.blocks[hash];
+			throw new Error("duplicate block (was at height " + old.height  + ")");
+       }
 
 		var bestChain = false;
 
@@ -54,7 +60,7 @@ function ClassSpec(b) {
 			disconn: 0,
 		};
 
-		if (this.size() == 0) {
+		if (this.cached_size == 0) {
 			if (this.network.genesisBlock.hash.toString() !=
 			    hash.toString())
 				throw new Error("Invalid genesis block");
@@ -62,6 +68,7 @@ function ClassSpec(b) {
 			block.height = 0;
 			block.work = curWork;
 			bestChain = true;
+            this.cached_size++;
 		} else {
 			var prevBlock = this.blocks[block.prev_hash];
 			if (!prevBlock)
@@ -69,10 +76,12 @@ function ClassSpec(b) {
 
 			block.height = prevBlock.height + 1;
 			block.work = prevBlock.work + curWork;
+            this.cached_size++;
 
 			if (block.work > this.bestBlock.work)
 				bestChain = true;
 		}
+
 
 		// add to by-hash index
 		this.blocks[hash] = block;
@@ -144,7 +153,6 @@ function ClassSpec(b) {
 					this.byHeight.push(ptr.hash);
 			}
 		}
-
 		return reorg;
 	};
 
@@ -153,7 +161,9 @@ function ClassSpec(b) {
 		var parser = new Parser(buf);
 		block.parse(parser, true);
 		this.add(block);
+
 	};
+
 
 	HeaderDB.prototype.readFile = function(filename) {
 		var fd = fs.openSync(filename, 'r');
@@ -161,6 +171,8 @@ function ClassSpec(b) {
 		if (stats.size % 80 != 0)
 			throw new Error("Corrupted header db");
 
+console.log("###  Reading headers from file:" + filename);
+    
 		while (1) {
 			var buf = new Buffer(80);
 			var bread = fs.readSync(fd, buf, 0, 80, null);
@@ -168,6 +180,10 @@ function ClassSpec(b) {
 				break;
 
 			this.addBuf(buf);
+
+            if ( ! ( this.cached_size % 1000 )) {
+                console.log("\tblock..." +  this.cached_size ) ;
+            }
 		}
 
 		fs.closeSync(fd);
