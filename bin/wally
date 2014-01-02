@@ -187,13 +187,13 @@ function netsync_headers(info)
 	var headers = info.message.headers;
 
 
-console.log("POR ADD... " + headers.length );
+console.log("About to add headers: " + headers.length );
 	headers.forEach(function(hdr) {
 		netsync_add_header(info, hdr);
 	});
 
 
-//  We persist the header DB after each bach
+//  We persist the header DB after each batch
     hdrdb.writeFile(hdrdb_fn);
 
 //  Only one request per batch of headers we receive. 
