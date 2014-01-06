@@ -2,4 +2,8 @@
 node_modules
 peerdb.json
 walletdb.aes
+.project
+hdrdb.dat
+npm-debug.log
+
 
